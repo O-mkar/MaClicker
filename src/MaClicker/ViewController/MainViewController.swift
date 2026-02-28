@@ -126,9 +126,11 @@ extension MainViewController: NSTextFieldDelegate {
 
 extension MainViewController: KeyPopoverViewControllerDelegate {
     /// Activation key in Popover was selected
-    func keySelected(keyCode: uint16) {
+    func keySelected(keyCode: uint16, modifiers: NSEvent.ModifierFlags) {
         if keyCode != Sauce.shared.keyCode(for: .escape) {      // Don't save Escape key
             let key = Sauce.shared.key(for: Int(keyCode))
+            let relevantModifiers = modifiers.intersection([.command, .option, .shift, .control])
+            UserDefaults.standard.set(Int(relevantModifiers.rawValue), forKey: "ActivationModifiers")
             UserDefaults.standard.set(key?.QWERTYKeyCode ?? keyCode, forKey: "ActivationKey")
         }
         
