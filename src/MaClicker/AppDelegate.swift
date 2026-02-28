@@ -40,6 +40,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Listen for clicker status changes
         NotificationCenter.default.addObserver(self, selector: #selector(clickerStatusChanged), name: .clickerStatusChanged, object: nil)
+        // Listen for CPS updates
+        NotificationCenter.default.addObserver(self, selector: #selector(cpsUpdated), name: .cpsUpdated, object: nil)
+
         
         // Ask for accessibillity permissions
         let checkOptPrompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as NSString
@@ -56,6 +59,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    /// Updates the menubar title with the current measured CPS
+    @objc func cpsUpdated(notification: Notification) {
+        guard let cps = notification.userInfo?["cps"] as? Double else { return }
+        statusItem.button?.title = cps > 0 ? " \(String(format: "%.2f", cps))" : ""
+    }
+    
     /// Show/hide popover
     @objc func togglePopOver() {
         guard let button = statusItem.button else { fatalError("Could not find status item button!") }

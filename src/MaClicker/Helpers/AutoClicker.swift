@@ -24,6 +24,7 @@ final class AutoClicker {
     private var clickerTimer: Timer?
     private var clickCount = 0
     private var isLocked = false
+    private var clickStartTime: TimeInterval?
     
     var isActive: Bool {
         clickerTimer != nil || isLocked
@@ -77,6 +78,8 @@ final class AutoClicker {
     /// Starts clicker
     private func startClicker() {
         if clickerTimer == nil {
+            clickCount = 0
+            clickStartTime = ProcessInfo.processInfo.systemUptime
             clickerTimer = Timer.scheduledTimer(timeInterval: 1.0 / Double(cps), target: self, selector: #selector(clickerTimerFired), userInfo: nil, repeats: true)
             notifyStatusChanged()
         }
@@ -87,7 +90,10 @@ final class AutoClicker {
         clickerTimer?.invalidate()
         clickerTimer = nil
         clickCount = 0
+        clickStartTime = nil
+        NotificationCenter.default.post(name: .cpsUpdated, object: nil, userInfo: ["cps": 0.0])
         notifyStatusChanged()
+
     }
     
     /// Toggles clicker (when in toggle mode)
@@ -123,9 +129,14 @@ final class AutoClicker {
     
     /// Clicker timer callback (used for toggle and hold option, to perform clicks at the set cps/interval)
     @objc private func clickerTimerFired(timer: Timer) {
+        // CPS = total clicks / elapsed seconds (same formula as cpstest.org)
+        let elapsed = ProcessInfo.processInfo.systemUptime - (clickStartTime ?? ProcessInfo.processInfo.systemUptime)
+        let measuredCPS = elapsed > 0 ? Double(clickCount + 1) / elapsed : 0
+        NotificationCenter.default.post(name: .cpsUpdated, object: nil, userInfo: ["cps": measuredCPS])
+        
         DispatchQueue.global(qos: DispatchQoS.background.qosClass).async {
             if self.mode == .toggle && self.useClickLimit && self.clickCount + 1 > self.clickLimit {
-                self.stopClicker()
+                DispatchQueue.main.async { self.stopClicker() }
                 return
             }
             
@@ -158,5 +169,6 @@ final class AutoClicker {
 }
 extension Notification.Name {
     static let clickerStatusChanged = Notification.Name("clickerStatusChanged")
-}
+    static let cpsUpdated = Notification.Name("cpsUpdated")
 
+}
