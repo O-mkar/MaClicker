@@ -21,6 +21,7 @@ final class AutoClicker {
     private var clickerTimer: Timer?
     private var clickCount = 0
     private var isLocked = false
+    private var recentClickTimes: [TimeInterval] = []
     
     init() {
         setupListeners()
@@ -72,6 +73,8 @@ final class AutoClicker {
         clickerTimer?.invalidate()
         clickerTimer = nil
         clickCount = 0
+        recentClickTimes.removeAll()
+        NotificationCenter.default.post(name: .cpsUpdated, object: nil, userInfo: ["cps": 0.0])
     }
     
     /// Toggles clicker (when in toggle mode)
@@ -106,9 +109,15 @@ final class AutoClicker {
     
     /// Clicker timer callback (used for toggle and hold option, to perform clicks at the set cps/interval)
     @objc private func clickerTimerFired(timer: Timer) {
+        // Update CPS on main thread (timer fires on main thread)
+        let now = ProcessInfo.processInfo.systemUptime
+        recentClickTimes = recentClickTimes.filter { now - $0 < 1.0 }
+        recentClickTimes.append(now)
+        NotificationCenter.default.post(name: .cpsUpdated, object: nil, userInfo: ["cps": Double(recentClickTimes.count)])
+        
         DispatchQueue.global(qos: DispatchQoS.background.qosClass).async {
             if self.mode == .toggle && self.useClickLimit && self.clickCount + 1 > self.clickLimit {
-                self.stopClicker()
+                DispatchQueue.main.async { self.stopClicker() }
                 return
             }
             
@@ -116,7 +125,7 @@ final class AutoClicker {
             self.releaseAllButtons()
             
             self.postMouseEvent(type: self.mouseButton == .right ? .rightMouseDown : .leftMouseDown)
-            self.postMouseEvent(type: self.mouseButton == .left ? .leftMouseUp : .leftMouseUp)
+            self.postMouseEvent(type: self.mouseButton == .right ? .rightMouseUp : .leftMouseUp)
             self.clickCount += 1
         }
     }
@@ -133,4 +142,8 @@ final class AutoClicker {
         
         event?.post(tap: .cghidEventTap)
     }
+}
+
+extension Notification.Name {
+    static let cpsUpdated = Notification.Name("cpsUpdated")
 }
