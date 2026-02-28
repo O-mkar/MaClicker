@@ -18,7 +18,6 @@ class MainViewController: NSViewController {
     
     var keyPopover: NSPopover!
     var updaterController: SPUStandardUpdaterController!
-    var autoClicker: AutoClicker?
     
     /// View did load
     override func viewDidLoad() {
@@ -53,8 +52,6 @@ class MainViewController: NSViewController {
         
         // Check for updates
         updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
-        
-        autoClicker = AutoClicker()
     }
     
     

@@ -12,6 +12,7 @@ import Cocoa
 class AppDelegate: NSObject, NSApplicationDelegate {
     let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let popover = NSPopover()
+    var autoClicker: AutoClicker?
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         // Set default UserDefaults
@@ -33,6 +34,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let viewController = storyBoard.instantiateController(withIdentifier: "ViewController") as? MainViewController else { fatalError("Unable to find ViewController!") }
         popover.contentViewController = viewController
         popover.behavior = .transient
+        
+        // Initialize AutoClicker
+        autoClicker = AutoClicker()
+        
+        // Listen for clicker status changes
+        NotificationCenter.default.addObserver(self, selector: #selector(clickerStatusChanged), name: .clickerStatusChanged, object: nil)
         
         // Ask for accessibillity permissions
         let checkOptPrompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as NSString
@@ -58,5 +65,42 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY)
         }
+    }
+    
+    /// Updates the menubar icon color based on clicker status
+    @objc func clickerStatusChanged(notification: Notification) {
+        guard let isActive = notification.userInfo?["isActive"] as? Bool else { return }
+        
+        DispatchQueue.main.async {
+            if isActive {
+                // Create a green filled version of the icon
+                if let originalIcon = NSImage(named: "MenubarIcon") {
+                    let greenIcon = self.createTintedImage(from: originalIcon, tintColor: .systemGreen)
+                    greenIcon.size = NSSize(width: 16, height: 16)
+                    self.statusItem.button?.image = greenIcon
+                }
+            } else {
+                // Reset to default template icon
+                let icon = NSImage(named: "MenubarIcon")
+                icon?.size = NSSize(width: 16, height: 16)
+                icon?.isTemplate = true
+                self.statusItem.button?.image = icon
+            }
+        }
+    }
+    
+    /// Creates a tinted version of an image
+    private func createTintedImage(from image: NSImage, tintColor: NSColor) -> NSImage {
+        let tintedImage = NSImage(size: image.size)
+        tintedImage.lockFocus()
+        
+        tintColor.set()
+        
+        let imageRect = NSRect(origin: .zero, size: image.size)
+        image.draw(in: imageRect, from: imageRect, operation: .sourceOver, fraction: 1.0)
+        imageRect.fill(using: .sourceAtop)
+        
+        tintedImage.unlockFocus()
+        return tintedImage
     }
 }

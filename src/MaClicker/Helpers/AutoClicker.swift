@@ -25,6 +25,10 @@ final class AutoClicker {
     private var clickCount = 0
     private var isLocked = false
     
+    var isActive: Bool {
+        clickerTimer != nil || isLocked
+    }
+    
     init() {
         setupListeners()
     }
@@ -74,6 +78,7 @@ final class AutoClicker {
     private func startClicker() {
         if clickerTimer == nil {
             clickerTimer = Timer.scheduledTimer(timeInterval: 1.0 / Double(cps), target: self, selector: #selector(clickerTimerFired), userInfo: nil, repeats: true)
+            notifyStatusChanged()
         }
     }
     
@@ -82,6 +87,7 @@ final class AutoClicker {
         clickerTimer?.invalidate()
         clickerTimer = nil
         clickCount = 0
+        notifyStatusChanged()
     }
     
     /// Toggles clicker (when in toggle mode)
@@ -105,6 +111,7 @@ final class AutoClicker {
             postMouseEvent(type: mouseButton == .right ? .rightMouseDown : .leftMouseDown)
             isLocked = true
         }
+        notifyStatusChanged()
     }
     
     
@@ -143,4 +150,13 @@ final class AutoClicker {
         
         event?.post(tap: .cghidEventTap)
     }
+    
+    /// Posts notification when clicker status changes
+    private func notifyStatusChanged() {
+        NotificationCenter.default.post(name: .clickerStatusChanged, object: nil, userInfo: ["isActive": isActive])
+    }
 }
+extension Notification.Name {
+    static let clickerStatusChanged = Notification.Name("clickerStatusChanged")
+}
+
