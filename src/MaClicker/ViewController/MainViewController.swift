@@ -131,7 +131,9 @@ extension MainViewController: KeyPopoverViewControllerDelegate {
             let key = Sauce.shared.key(for: Int(keyCode))
             let relevantModifiers = modifiers.intersection([.command, .option, .shift, .control])
             UserDefaults.standard.set(Int(relevantModifiers.rawValue), forKey: "ActivationModifiers")
-            UserDefaults.standard.set(key?.QWERTYKeyCode ?? keyCode, forKey: "ActivationKey")
+            // Remove first so IB binding re-evaluates the transformer even when the key code is unchanged
+            UserDefaults.standard.removeObject(forKey: "ActivationKey")
+            UserDefaults.standard.set(Int(key?.QWERTYKeyCode ?? keyCode), forKey: "ActivationKey")
         }
         
         keyPopover.performClose(self)
