@@ -55,7 +55,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Updates the menubar title with the current measured CPS
     @objc func cpsUpdated(notification: Notification) {
         guard let cps = notification.userInfo?["cps"] as? Double else { return }
-        statusItem.button?.title = cps > 0 ? " \(Int(cps))" : ""
+        statusItem.button?.title = cps > 0 ? " \(String(format: "%.2f", cps))" : ""
     }
     
     /// Show/hide popover
