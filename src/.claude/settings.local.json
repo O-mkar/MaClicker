@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild -project MaClicker.xcodeproj -scheme MaClicker -configuration Debug build)",
+      "Bash(git add MaClicker/Helpers/AutoClicker.swift)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

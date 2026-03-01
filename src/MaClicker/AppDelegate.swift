@@ -23,7 +23,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "HumaniseEnabled": false,
             "FatigueEnabled": true,
             "NoiseEnabled": true,
-            "CollapseEnabled": true
+            "CollapseEnabled": true,
+            "LiveAnalysisEnabled": false
         ])
         
         // Set up menubar icon

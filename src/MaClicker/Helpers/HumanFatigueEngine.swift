@@ -7,10 +7,11 @@ import Foundation
 
 /// Simulates human fatigue patterns for the auto-clicker.
 ///
-/// Five layers designed to defeat statistical bot-detection:
+/// Six layers designed to defeat statistical bot-detection:
 /// - **Stage multiplier**: piecewise fatigue arc (warmup → steady → onset → exhaustion)
 /// - **Random-walk drift**: correlated tempo clusters (nearby clicks stay similar)
 /// - **Burst rhythm**: humans click in micro-bursts with brief pauses (bimodal timing)
+/// - **Micro-moments**: tiny 20-80ms hesitations every few clicks (finger repositioning, attention dips)
 /// - **Collapse events**: probabilistic micro/macro pauses
 /// - **Log-normal jitter**: right-skewed per-click noise matching human reaction-time distributions
 final class HumanFatigueEngine {
@@ -23,6 +24,10 @@ final class HumanFatigueEngine {
 
     // Burst rhythm state — tracks consecutive fast clicks to decide when to gap
     private var consecutiveFast: Int = 0
+
+    // Micro-moment state — tracks clicks until next tiny hesitation
+    private var clicksSinceMoment: Int = 0
+    private var nextMomentAt: Int = Int.random(in: 5...15)
 
     init(seed: Double) {
         self.seed = seed
@@ -116,6 +121,37 @@ final class HumanFatigueEngine {
         }
     }
 
+    // MARK: - Micro-Moments
+
+    /// Tiny hesitations (20-80ms) that happen every 5-15 clicks, representing
+    /// finger repositioning on the mouse, momentary attention drift, or slight
+    /// motor uncertainty. These are too small and too frequent for the collapse
+    /// system but create the fine-grained timing texture that distinguishes
+    /// real human clicking from smoothly-jittered bots.
+    ///
+    /// With fatigue: moments happen more often (every 4-10 clicks instead of 5-15)
+    /// and last slightly longer (mean shifts from 40ms to 55ms).
+    ///
+    /// - Parameter elapsed: Session elapsed time in seconds.
+    /// - Returns: Extra delay in milliseconds (0.0 if no moment triggered).
+    private func microMomentDelay(elapsed: Double) -> Double {
+        clicksSinceMoment += 1
+
+        guard clicksSinceMoment >= nextMomentAt else { return 0.0 }
+
+        // Reset counter with fatigue-adjusted threshold
+        clicksSinceMoment = 0
+        let fatigueFactor = min(elapsed / 600.0, 1.0) // 0→1 over 10 minutes
+        let minClicks = max(4, Int(5.0 - fatigueFactor * 1.0))   // 5→4
+        let maxClicks = max(8, Int(15.0 - fatigueFactor * 5.0))  // 15→10
+        nextMomentAt = Int.random(in: minClicks...maxClicks)
+
+        // Hesitation magnitude: slightly larger when fatigued
+        let mean = 40.0 + fatigueFactor * 15.0  // 40ms → 55ms
+        let sd   = 12.0 + fatigueFactor * 5.0   // 12ms → 17ms
+        return max(15.0, Self.gaussianRandom(mean: mean, sd: sd))
+    }
+
     // MARK: - Collapse Events
 
     /// Returns an extra pause duration in seconds (0.0 if no event triggered).
@@ -151,7 +187,7 @@ final class HumanFatigueEngine {
 
     /// Computes the next click delay in milliseconds, applying all enabled layers.
     ///
-    /// Pipeline: base × stage × noise → burst rhythm → log-normal jitter → collapse
+    /// Pipeline: base × stage × noise → burst rhythm → log-normal jitter → micro-moment → collapse
     ///
     /// - Returns: Delay in milliseconds, floored at 40ms.
     func nextDelayMs(
@@ -174,11 +210,14 @@ final class HumanFatigueEngine {
         let logJitter = exp(Self.gaussianRandom(mean: 0, sd: 0.06))
         let jitteredDelay = burstDelay * logJitter
 
+        // Micro-moments: tiny hesitations every few clicks (finger repositioning, attention dips)
+        let momentMs = noiseEnabled ? microMomentDelay(elapsed: elapsed) : 0.0
+
         let collapseMs = collapseEnabled
             ? Self.collapseDelay(elapsed: elapsed, clickCount: clickCount) * 1000.0
             : 0.0
 
-        return max(40.0, jitteredDelay + collapseMs)
+        return max(40.0, jitteredDelay + momentMs + collapseMs)
     }
 
     // MARK: - Gaussian Random (Box-Muller Transform)

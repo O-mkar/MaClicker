@@ -265,7 +265,7 @@
             <objects>
                 <viewController storyboardIdentifier="ViewController" id="XfG-lQ-9wD" customClass="MainViewController" customModule="MaClicker" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" id="m2S-Jp-Qdl">
-                        <rect key="frame" x="0.0" y="0.0" width="409" height="320"/>
+                        <rect key="frame" x="0.0" y="0.0" width="409" height="345"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <subviews>
                             <segmentedControl verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="rjL-fk-42N">
@@ -506,6 +506,16 @@
                                     <binding destination="ItM-Zv-1cj" name="enabled" keyPath="values.HumaniseEnabled" id="Co4-En-De2"/>
                                 </connections>
                             </button>
+                            <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="La1-An-De2">
+                                <rect key="frame" x="18" y="39" width="130" height="18"/>
+                                <buttonCell key="cell" type="check" title="Live-Analyse" bezelStyle="regularSquare" imagePosition="left" inset="2" id="La2-Ce-De2">
+                                    <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                                    <font key="font" metaFont="system"/>
+                                </buttonCell>
+                                <connections>
+                                    <binding destination="ItM-Zv-1cj" name="value" keyPath="values.LiveAnalysisEnabled" id="La3-Va-De2"/>
+                                </connections>
+                            </button>
                             <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="yF2-LK-Bwj">
                                 <rect key="frame" x="308" y="13" width="88" height="32"/>
                                 <buttonCell key="cell" type="push" title="Beenden" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="dQ2-Uy-QeZ">
@@ -591,6 +601,8 @@
                             <constraint firstItem="No1-Dr-De2" firstAttribute="leading" secondItem="Fa1-Ar-De2" secondAttribute="trailing" constant="10" id="DcB-Cn-011"/>
                             <constraint firstItem="Co1-La-De2" firstAttribute="top" secondItem="Hu3-En-De2" secondAttribute="bottom" constant="5" id="DcC-Cn-012"/>
                             <constraint firstItem="Co1-La-De2" firstAttribute="leading" secondItem="No1-Dr-De2" secondAttribute="trailing" constant="10" id="DcD-Cn-013"/>
+                            <constraint firstItem="La1-An-De2" firstAttribute="top" secondItem="Fa1-Ar-De2" secondAttribute="bottom" constant="5" id="DcE-Cn-014"/>
+                            <constraint firstItem="La1-An-De2" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" id="DcF-Cn-015"/>
                         </constraints>
                     </view>
                     <connections>

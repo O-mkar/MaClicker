@@ -26,6 +26,7 @@ final class AutoClicker {
     private var fatigueEnabled:  Bool { UserDefaults.standard.bool(forKey: "FatigueEnabled") }
     private var noiseEnabled:    Bool { UserDefaults.standard.bool(forKey: "NoiseEnabled") }
     private var collapseEnabled: Bool { UserDefaults.standard.bool(forKey: "CollapseEnabled") }
+    private var liveAnalysisEnabled: Bool { UserDefaults.standard.bool(forKey: "LiveAnalysisEnabled") }
 
     // Standard clicker state
     private var clickerTimer: Timer?
@@ -43,6 +44,13 @@ final class AutoClicker {
     private var humaniseClickCount = 0
     private var humaniseWorkItem: DispatchWorkItem?
     private var fatigueEngine: HumanFatigueEngine?
+
+    // Shared session uptime (used for live analysis timestamps)
+    private var sessionStartUptime: TimeInterval = 0
+
+    // Mouse drift state — mostly still, rare tiny nudges
+    private var driftX: Double = 0
+    private var driftY: Double = 0
 
     init() {
         setupListeners()
@@ -96,7 +104,9 @@ final class AutoClicker {
         } else if clickerTimer == nil {
             clickCount = 0
             clickStartTime = ProcessInfo.processInfo.systemUptime
+            sessionStartUptime = ProcessInfo.processInfo.systemUptime
             clickerTimer = Timer.scheduledTimer(timeInterval: 1.0 / Double(cps), target: self, selector: #selector(clickerTimerFired), userInfo: nil, repeats: true)
+            if liveAnalysisEnabled { LiveAnalysisWindowController.shared.startSession() }
             notifyStatusChanged()
         }
     }
@@ -116,6 +126,12 @@ final class AutoClicker {
         sessionStart = nil
         humaniseClickCount = 0
         fatigueEngine = nil
+
+        // Mouse drift
+        driftX = 0; driftY = 0
+
+        // Live analysis
+        LiveAnalysisWindowController.shared.endSession()
 
         notifyStatusChanged()
     }
@@ -152,8 +168,10 @@ final class AutoClicker {
     private func startHumaniseClicker() {
         guard humaniseWorkItem == nil else { return }
         sessionStart = Date()
+        sessionStartUptime = ProcessInfo.processInfo.systemUptime
         humaniseClickCount = 0
         fatigueEngine = HumanFatigueEngine(seed: Double.random(in: 0...100))
+        if liveAnalysisEnabled { LiveAnalysisWindowController.shared.startSession() }
         scheduleNextHumaniseClick()
         notifyStatusChanged()
     }
@@ -184,6 +202,10 @@ final class AutoClicker {
 
             self.performHumaniseClick()
             self.humaniseClickCount += 1
+
+            // Live analysis: record click timestamp relative to session start
+            let relMs = (ProcessInfo.processInfo.systemUptime - self.sessionStartUptime) * 1000.0
+            LiveAnalysisWindowController.shared.recordClick(relativeMs: relMs)
 
             // Throttled CPS update (~10/sec)
             let now = ProcessInfo.processInfo.systemUptime
@@ -217,6 +239,9 @@ final class AutoClicker {
 
     /// Fires a single humanise click with variable hold duration
     private func performHumaniseClick() {
+        // Simulate hand tremor — subtle cursor drift before clicking
+        applyHandTremor()
+
         releaseAllButtons()
         postMouseEvent(type: mouseButton == .right ? .rightMouseDown : .leftMouseDown)
 
@@ -225,6 +250,56 @@ final class AutoClicker {
         Thread.sleep(forTimeInterval: holdMs / 1000.0)
 
         postMouseEvent(type: mouseButton == .right ? .rightMouseUp : .leftMouseUp)
+    }
+
+    // MARK: - Mouse Movement (Hand Simulation)
+
+    /// Realistic hand simulation: mouse stays STILL most of the time.
+    /// Humans hold the mouse steady when clicking — only occasional tiny shifts.
+    ///
+    /// - ~88% of clicks: no movement at all (cursor stays put)
+    /// - ~10% of clicks: micro-nudge (0.3–1px) — involuntary finger twitch
+    /// - ~2% of clicks: small drift (1–2px) — hand repositioning, then slowly reverts
+    private func applyHandTremor() {
+        let roll = Double.random(in: 0...1)
+
+        if roll < 0.88 {
+            // Most clicks: perfectly still — this is what humans actually do
+            return
+        }
+
+        if roll < 0.98 {
+            // ~10%: micro-nudge — tiny involuntary finger twitch
+            let nx = HumanFatigueEngine.gaussianRandom(mean: 0, sd: 0.4)
+            let ny = HumanFatigueEngine.gaussianRandom(mean: 0, sd: 0.4)
+            driftX += nx
+            driftY += ny
+        } else {
+            // ~2%: small drift — hand repositions slightly
+            let dx = HumanFatigueEngine.gaussianRandom(mean: 0, sd: 0.8)
+            let dy = HumanFatigueEngine.gaussianRandom(mean: 0, sd: 0.8)
+            driftX += dx
+            driftY += dy
+        }
+
+        // Hard cap: never drift more than ±2px from start
+        driftX = min(2, max(-2, driftX))
+        driftY = min(2, max(-2, driftY))
+
+        // Slow revert toward center (hand naturally settles back)
+        driftX *= 0.95
+        driftY *= 0.95
+
+        // Only post if offset is meaningful
+        guard abs(driftX) > 0.15 || abs(driftY) > 0.15 else { return }
+
+        var loc = NSEvent.mouseLocation
+        loc.y = NSHeight(NSScreen.screens[0].frame) - loc.y
+        let pt = CGPoint(x: loc.x + driftX, y: loc.y + driftY)
+        if let ev = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved,
+                            mouseCursorPosition: pt, mouseButton: .left) {
+            ev.post(tap: .cghidEventTap)
+        }
     }
 
 
@@ -253,12 +328,19 @@ final class AutoClicker {
                 return
             }
 
+            // Simulate hand tremor before every click
+            self.applyHandTremor()
+
             // Release buttons to prevent bugs after switching modes
             self.releaseAllButtons()
 
             self.postMouseEvent(type: self.mouseButton == .right ? .rightMouseDown : .leftMouseDown)
             self.postMouseEvent(type: self.mouseButton == .right ? .rightMouseUp : .leftMouseUp)
             self.clickCount += 1
+
+            // Live analysis: record click timestamp
+            let relMs = (ProcessInfo.processInfo.systemUptime - self.sessionStartUptime) * 1000.0
+            LiveAnalysisWindowController.shared.recordClick(relativeMs: relMs)
         }
     }
 

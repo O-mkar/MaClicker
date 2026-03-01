@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Live Click Analysis</title>
+<style>
+:root{--bg:#090d18;--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.13);--text:#e3ecf7;--muted:#7d99bc;--green:#20d088;--purple:#9b6bff;--red:#ff4f6e;--yellow:#ffc233;--blue:#4da6ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(ellipse 900px 550px at 12% 0%,rgba(155,107,255,.11) 0%,transparent 60%),radial-gradient(ellipse 750px 500px at 88% 10%,rgba(32,208,136,.08) 0%,transparent 55%),var(--bg);color:var(--text);min-height:100vh;padding:16px 14px 32px}
+header{display:flex;align-items:center;gap:12px;padding:0 2px 14px}
+.logo{width:36px;height:36px;background:linear-gradient(135deg,rgba(155,107,255,.28),rgba(32,208,136,.18));border:1px solid rgba(155,107,255,.32);border-radius:11px;display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.hd-title{font-size:15px;font-weight:800;letter-spacing:-.2px}
+.hd-sub{font-size:10.5px;color:var(--muted);margin-top:2px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px}
+.stat{background:linear-gradient(155deg,rgba(255,255,255,.038),rgba(255,255,255,.013));border:1px solid var(--border);border-radius:12px;padding:10px 10px 8px}
+.stat-key{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.stat-val{font-size:20px;font-weight:900;line-height:1;display:flex;align-items:baseline;gap:2px}
+.stat-val .unit{font-size:11px;font-weight:600;color:var(--muted)}
+.stat-sub{font-size:10px;color:var(--muted);margin-top:4px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.055);border:1px solid var(--border2);color:var(--muted)}
+.pill.running{color:var(--green);border-color:rgba(32,208,136,.28);background:rgba(32,208,136,.08)}
+.pill.finished{color:var(--purple);border-color:rgba(155,107,255,.32);background:rgba(155,107,255,.09)}
+.pill .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.pill.running .dot{animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.panel{background:linear-gradient(155deg,rgba(255,255,255,.032),rgba(255,255,255,.010));border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;overflow:hidden}
+.panel-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.chart-wrap{position:relative;height:160px}
+.progress-wrap{margin-top:8px;height:3px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden}
+.progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--purple),var(--green));border-radius:99px;transition:width .1s linear}
+.chart-note{font-size:10px;color:var(--muted);margin-top:7px}
+.verdict-card{display:none;background:rgba(0,0,0,.22);border:1px solid var(--border);border-radius:12px;padding:12px;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.vc-label{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.vc-verdict{font-size:15px;font-weight:900;margin-top:4px}
+.vc-verdict.ok{color:var(--green)}.vc-verdict.warn{color:var(--yellow)}.vc-verdict.bad{color:var(--red)}
+.vc-sub{font-size:10.5px;color:var(--muted);margin-top:3px}
+.score-badge{display:flex;flex-direction:column;align-items:center;flex-shrink:0;gap:2px}
+.score-num{font-size:28px;font-weight:900;line-height:1}
+.score-num.ok{color:var(--green)}.score-num.warn{color:var(--yellow)}.score-num.bad{color:var(--red)}
+.score-label{font-size:8.5px;color:var(--muted);text-align:center;line-height:1.3}
+.score-bar-wrap{width:50px;height:4px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-top:2px}
+.score-bar{height:100%;border-radius:99px;transition:width .45s cubic-bezier(.4,0,.2,1)}
+.signals-wrap{display:none}
+.signals-header{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.signal-list{display:grid;gap:4px}
+.signal-row{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.028);border:1px solid var(--border)}
+.sig-left{flex:1;min-width:0}
+.sig-name{font-size:11px;font-weight:600}
+.sig-hint{font-size:9px;color:var(--muted);margin-top:1px}
+.sig-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.sig-val{font-size:11px;font-weight:700;color:var(--text);min-width:36px;text-align:right}
+.sig-badge{font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:999px;min-width:36px;text-align:center;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--muted)}
+.sig-badge.ok{color:var(--green);border-color:rgba(32,208,136,.25);background:rgba(32,208,136,.08)}
+.sig-badge.warn{color:var(--yellow);border-color:rgba(255,194,51,.24);background:rgba(255,194,51,.07)}
+.sig-badge.bad{color:var(--red);border-color:rgba(255,79,110,.24);background:rgba(255,79,110,.08)}
+.sig-cat{font-size:8px;font-weight:800;letter-spacing:.8px;color:rgba(125,153,188,.6);text-transform:uppercase;padding:4px 2px 1px}
+.domain-breakdown{display:none;margin-bottom:10px}
+.domain-header{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.domain-list{display:grid;gap:5px}
+.domain-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;background:rgba(255,255,255,.028);border:1px solid var(--border)}
+.dom-name{font-size:10px;font-weight:700;min-width:90px;flex-shrink:0}
+.dom-bar-wrap{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden}
+.dom-bar{height:100%;border-radius:99px;transition:width .4s ease}
+.dom-score{font-size:10px;font-weight:800;min-width:40px;text-align:right}
+.dom-score.ok{color:var(--green)}.dom-score.warn{color:var(--yellow)}.dom-score.bad{color:var(--red)}
+.footer-note{display:none;font-size:10.5px;color:var(--muted);line-height:1.5;margin-top:8px}
+.c-green{color:var(--green)}.c-purple{color:var(--purple)}
+.idle-msg{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+.idle-msg strong{display:block;margin-bottom:8px;color:var(--text);font-size:16px}
+</style>
+</head>
+<body>
+<header>
+<div class="logo">📊</div>
+<div>
+<div class="hd-title">Live Click Analysis</div>
+<div class="hd-sub">Real-time CPS monitoring &amp; 14-signal bot detection</div>
+</div>
+</header>
+<section class="stats">
+<div class="stat"><div class="stat-key">Total Clicks</div><div class="stat-val" id="totalClicks">0</div></div>
+<div class="stat"><div class="stat-key">Live CPS</div><div class="stat-val c-green" id="runningCps">0.0</div></div>
+<div class="stat"><div class="stat-key">Avg CPS</div><div class="stat-val" id="avgCps">0.0</div></div>
+<div class="stat"><div class="stat-key">Peak CPS</div><div class="stat-val c-purple" id="maxCps">0.0</div></div>
+<div class="stat"><div class="stat-key">Duration</div><div class="stat-val" id="durationEl">0<span class="unit">s</span></div><div class="stat-sub"><span class="pill" id="statusPill">Idle</span></div></div>
+</section>
+<div class="panel">
+<div class="panel-title">📈 Real-time Statistics</div>
+<div class="chart-wrap"><canvas id="chart"></canvas></div>
+<div class="chart-note"><span class="c-green">●</span> Real-time CPS &nbsp; <span class="c-purple">●</span> Average CPS</div>
+</div>
+<div class="verdict-card" id="verdictCard">
+<div><div class="vc-label">Verdict</div><div class="vc-verdict" id="vcVerdict">--</div><div class="vc-sub" id="vcSub"></div></div>
+<div class="score-badge"><div class="score-num" id="scoreNum">0</div><div class="score-label">Bot Score<br>/100</div><div class="score-bar-wrap"><div class="score-bar" id="scoreBar"></div></div></div>
+</div>
+<div class="domain-breakdown" id="domainBreakdown"><div class="domain-header">Score by Domain</div><div class="domain-list" id="domainList"></div></div>
+<div class="signals-wrap" id="signalsWrap"><div class="signals-header">Detection Signals</div><div class="signal-list" id="signalList"></div></div>
+<div class="footer-note" id="footerNote"></div>
+<div class="idle-msg" id="idleMsg"><strong>Waiting for auto-clicker</strong>Analysis begins when clicking starts.</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+function mean(a){return a.length?a.reduce((s,v)=>s+v,0)/a.length:0}
+function std(a){if(a.length<2)return 0;const m=mean(a);return Math.sqrt(mean(a.map(x=>(x-m)**2)))}
+function clamp(n,lo,hi){return Math.max(lo,Math.min(hi,n))}
+function skewness(a){if(a.length<3)return 0;const m=mean(a),s=std(a);if(s<1e-9)return 0;const n=a.length;return(n/((n-1)*(n-2)))*a.reduce((acc,x)=>acc+((x-m)/s)**3,0)}
+
+let running=false,sessionDone=false,jsStartTime=0,tickTimer=null;
+let clickTimes=[],lastSecondClicks=[],maxRtCps=0;
+
+const labels=[],rtData=[],avgData=[];
+const chart=new Chart(document.getElementById("chart"),{type:"line",data:{labels,datasets:[{label:"Live CPS",data:rtData,borderColor:"#20d088",backgroundColor:"rgba(32,208,136,.06)",fill:true,borderWidth:2.5,pointRadius:0,tension:.35},{label:"Avg CPS",data:avgData,borderColor:"#9b6bff",backgroundColor:"transparent",borderDash:[5,3],borderWidth:2,pointRadius:0,tension:.35}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{labels:{color:"#7d99bc",font:{size:10},boxWidth:14}},tooltip:{mode:"index",intersect:false}},scales:{x:{ticks:{color:"#5e7a9a",maxTicksLimit:8,font:{size:9}},grid:{color:"rgba(255,255,255,.045)"},title:{display:true,text:"Time (s)",color:"#5e7a9a",font:{size:9}}},y:{beginAtZero:true,suggestedMax:12,ticks:{color:"#5e7a9a",font:{size:9}},grid:{color:"rgba(255,255,255,.045)"},title:{display:true,text:"CPS",color:"#5e7a9a",font:{size:9}}}}}});
+
+function setStatus(s){const m={idle:["Idle",""],running:["Running","running"],finished:["Finished","finished"]};const[l,c]=m[s];const p=document.getElementById("statusPill");p.className="pill "+c;p.innerHTML=c==="running"?`<span class="dot"></span>${l}`:l}
+
+// ── JS API called from Swift ──
+function startSession(){
+running=true;sessionDone=false;jsStartTime=performance.now();maxRtCps=0;
+clickTimes=[];lastSecondClicks=[];
+labels.length=0;rtData.length=0;avgData.length=0;chart.update();
+document.getElementById("totalClicks").textContent="0";
+document.getElementById("runningCps").textContent="0.0";
+document.getElementById("avgCps").textContent="0.0";
+document.getElementById("maxCps").textContent="0.0";
+document.getElementById("durationEl").innerHTML='0<span class="unit">s</span>';
+document.getElementById("verdictCard").style.display="none";
+document.getElementById("domainBreakdown").style.display="none";
+document.getElementById("signalsWrap").style.display="none";
+document.getElementById("footerNote").style.display="none";
+document.getElementById("idleMsg").style.display="none";
+setStatus("running");
+if(tickTimer)clearInterval(tickTimer);
+tickTimer=setInterval(tick,100);
+}
+
+function addClickBatch(times){for(const t of times){clickTimes.push(t);lastSecondClicks.push(t)}}
+
+function endSession(){
+running=false;sessionDone=true;
+if(tickTimer){clearInterval(tickTimer);tickTimer=null}
+tick();
+setStatus("finished");
+if(clickTimes.length>=10)runDetector();
+}
+
+function tick(){
+const nowRel=performance.now()-jsStartTime;
+const elapsedS=Math.max(.001,nowRel/1000);
+while(lastSecondClicks.length&&(nowRel-lastSecondClicks[0])>1000)lastSecondClicks.shift();
+const rtCps=lastSecondClicks.length;
+const avgCps=clickTimes.length/elapsedS;
+maxRtCps=Math.max(maxRtCps,rtCps);
+document.getElementById("totalClicks").textContent=clickTimes.length;
+document.getElementById("runningCps").textContent=rtCps.toFixed(1);
+document.getElementById("avgCps").textContent=avgCps.toFixed(1);
+document.getElementById("maxCps").textContent=maxRtCps.toFixed(1);
+document.getElementById("durationEl").innerHTML=Math.floor(elapsedS)+'<span class="unit">s</span>';
+labels.push((nowRel/1000).toFixed(1));
+rtData.push(+rtCps.toFixed(2));
+avgData.push(+avgCps.toFixed(2));
+if(labels.length>500){labels.shift();rtData.shift();avgData.shift()}
+chart.update();
+}
+
+function runDetector(){
+const n=clickTimes.length;
+if(n<10)return;
+const dt=[];for(let i=1;i<n;i++)dt.push(clickTimes[i]-clickTimes[i-1]);
+const nd=dt.length,m=mean(dt),s=std(dt);
+const totalDur=(clickTimes[n-1]-clickTimes[0])/1000;
+const avgCps=totalDur>0?(n-1)/totalDur:0;
+const sf=totalDur>=15?.65:totalDur>=10?.75:totalDur>=5?.85:1;
+
+let hsPts,hsRisk,speedOverride=false;
+if(avgCps>24*sf){hsPts=18;hsRisk="bad";speedOverride=true}
+else if(avgCps>20*sf){hsPts=16;hsRisk="bad";speedOverride=true}
+else if(avgCps>16*sf){hsPts=12;hsRisk="bad"}
+else if(avgCps>12*sf){hsPts=6;hsRisk="warn"}
+else if(avgCps>9*sf){hsPts=2;hsRisk="warn"}
+else{hsPts=0;hsRisk="ok"}
+
+const cv=m>0?s/m:0;
+let cvPts,cvRisk;
+if(cv<.03){cvPts=7;cvRisk="bad"}else if(cv<.06){cvPts=5;cvRisk="bad"}else if(cv<.10){cvPts=2;cvRisk="warn"}else if(cv<.16){cvPts=1;cvRisk="warn"}else{cvPts=0;cvRisk="ok"}
+
+let repeats=0;for(let i=1;i<nd;i++)if(Math.abs(dt[i]-dt[i-1])<=1)repeats++;
+const repeatRatio=nd>1?repeats/(nd-1):0;
+let rrPts,rrRisk;
+if(repeatRatio>.55){rrPts=7;rrRisk="bad"}else if(repeatRatio>.35){rrPts=4;rrRisk="bad"}else if(repeatRatio>.18){rrPts=2;rrRisk="warn"}else{rrPts=0;rrRisk="ok"}
+
+const BIN=5,bins={};for(const d of dt){const b=Math.floor(d/BIN);bins[b]=(bins[b]||0)+1}
+const probs=Object.values(bins).map(c=>c/nd);
+const rawH=-probs.reduce((a,p)=>a+p*Math.log2(p+1e-12),0);
+const nB=Object.keys(bins).length;const normH=nB>1?rawH/Math.log2(nB):0;
+let entPts,entRisk;
+if(normH<.12){entPts=6;entRisk="bad"}else if(normH<.30){entPts=4;entRisk="bad"}else if(normH<.50){entPts=1;entRisk="warn"}else{entPts=0;entRisk="ok"}
+
+let ac;if(s<.001){ac=1}else{let num=0;for(let i=0;i<nd-1;i++)num+=(dt[i]-m)*(dt[i+1]-m);ac=clamp(num/((nd-1)*s*s),-1,1)}
+let acPts,acRisk;
+if(ac>.85){acPts=5;acRisk="bad"}else if(ac>.65){acPts=3;acRisk="bad"}else if(ac>.40){acPts=1;acRisk="warn"}else{acPts=0;acRisk="ok"}
+
+const centered=dt.map(d=>d-m);let maxPow=0,totalPow=0;const halfN=Math.floor(nd/2);
+for(let k=1;k<=halfN;k++){let re=0,im=0;for(let i=0;i<nd;i++){const ang=2*Math.PI*k*i/nd;re+=centered[i]*Math.cos(ang);im-=centered[i]*Math.sin(ang)}const pw=re*re+im*im;totalPow+=pw;if(pw>maxPow)maxPow=pw}
+const peakRatio=totalPow>0?maxPow/totalPow:0;
+let spPts,spRisk;
+if(peakRatio>.55){spPts=8;spRisk="bad"}else if(peakRatio>.40){spPts=5;spRisk="bad"}else if(peakRatio>.25){spPts=2;spRisk="warn"}else{spPts=0;spRisk="ok"}
+
+// Mouse dynamics: N/A for synthetic events (score 0 = benefit of doubt)
+const posPts=0,posRisk="ok",mjPts=0,mjRisk="ok",mpPts=0,mpRisk="ok",vvPts=0,vvRisk="ok";
+
+const digitCounts=new Array(10).fill(0);for(const d of dt)digitCounts[Math.floor(Math.abs(d))%10]++;
+const expected=nd/10;const chi2=digitCounts.reduce((a,o)=>a+(o-expected)**2/expected,0)/9;
+let dgPts,dgRisk;
+if(chi2>10){dgPts=5;dgRisk="bad"}else if(chi2>5){dgPts=3;dgRisk="bad"}else if(chi2>2.5){dgPts=1;dgRisk="warn"}else{dgPts=0;dgRisk="ok"}
+
+const B=(s+m)>0?(s-m)/(s+m):0;
+let buPts,buRisk;
+if(B<-.80){buPts=5;buRisk="bad"}else if(B<-.60){buPts=3;buRisk="bad"}else if(B<-.40){buPts=1;buRisk="warn"}else{buPts=0;buRisk="ok"}
+
+const sk=skewness(dt),absSk=Math.abs(sk);
+let skPts,skRisk;
+if(absSk<.08){skPts=7;skRisk="bad"}else if(absSk<.20){skPts=3;skRisk="warn"}else if(absSk<.40){skPts=1;skRisk="warn"}else{skPts=0;skRisk="ok"}
+
+const fracs=dt.map(d=>d-Math.floor(d)),fracStd=std(fracs);
+let jPts,jRisk;
+if(fracStd<.03){jPts=7;jRisk="bad"}else if(fracStd<.08){jPts=4;jRisk="bad"}else if(fracStd<.15){jPts=2;jRisk="warn"}else{jPts=0;jRisk="ok"}
+
+const totalScore=clamp(hsPts+cvPts+rrPts+entPts+acPts+spPts+posPts+mjPts+mpPts+vvPts+dgPts+buPts+skPts+jPts,0,100);
+let verdict,vClass,sub;
+if(speedOverride){verdict="BOT \u2014 Superhuman Speed";vClass="bad";sub=avgCps.toFixed(1)+" CPS over "+totalDur.toFixed(0)+"s is physically impossible"}
+else if(totalScore>=60){verdict="Likely BOT / Autoclicker";vClass="bad";sub="Timing regularity + spectral periodicity = automation"}
+else if(totalScore>=30){verdict="Borderline \u2014 Possibly Tool-Assisted";vClass="warn";sub="Suspicious patterns \u2014 could be jitter-randomized autoclicker"}
+else{verdict="Likely Human";vClass="ok";sub="Natural jitter, timing asymmetry \u2014 looks organic"}
+
+const effectiveScore=speedOverride?Math.max(totalScore,80):totalScore;
+const scoreClass=effectiveScore>=60?"bad":effectiveScore>=30?"warn":"ok";
+const scoreColor=effectiveScore>=60?"#ff4f6e":effectiveScore>=30?"#ffc233":"#20d088";
+
+document.getElementById("verdictCard").style.display="flex";
+document.getElementById("vcVerdict").textContent=verdict;
+document.getElementById("vcVerdict").className="vc-verdict "+vClass;
+document.getElementById("vcSub").textContent=sub;
+document.getElementById("scoreNum").textContent=effectiveScore;
+document.getElementById("scoreNum").className="score-num "+scoreClass;
+document.getElementById("scoreBar").style.width=effectiveScore+"%";
+document.getElementById("scoreBar").style.background=scoreColor;
+
+const domains=[{name:"Physical Limits",pts:hsPts,max:18},{name:"Time-Domain",pts:cvPts+rrPts+entPts,max:20},{name:"Frequency",pts:acPts+spPts,max:13},{name:"Mouse Dynamics",pts:0,max:25},{name:"Distribution",pts:dgPts+buPts+skPts+jPts,max:24}];
+function dR(p,mx){const pct=mx>0?p/mx:0;return pct>=.5?"bad":pct>=.2?"warn":"ok"}
+function dC(r){return r==="bad"?"#ff4f6e":r==="warn"?"#ffc233":"#20d088"}
+document.getElementById("domainList").innerHTML=domains.map(d=>{const r=dR(d.pts,d.max),pct=d.max>0?(d.pts/d.max*100):0;return`<div class="domain-row"><div class="dom-name">${d.name}</div><div class="dom-bar-wrap"><div class="dom-bar" style="width:${pct}%;background:${dC(r)}"></div></div><div class="dom-score ${r}">${d.pts}/${d.max}</div></div>`}).join("");
+document.getElementById("domainBreakdown").style.display="";
+
+const sigs=[
+{cat:"PHYSICAL LIMITS"},
+{name:"Superhuman Speed",hint:`scaled for ${totalDur.toFixed(0)}s (\u00d7${sf.toFixed(2)})`,val:avgCps.toFixed(1)+" CPS",pts:hsPts,max:18,risk:hsRisk},
+{cat:"TIME-DOMAIN"},
+{name:"CV \u2014 Interval Regularity",hint:"lower = more mechanically regular",val:cv.toFixed(4),pts:cvPts,max:7,risk:cvRisk},
+{name:"Repeat Ratio (\u00b11 ms)",hint:"consecutive identical intervals",val:repeatRatio.toFixed(4),pts:rrPts,max:7,risk:rrRisk},
+{name:"Shannon Entropy (5 ms bins)",hint:"lower = intervals cluster in few bins",val:normH.toFixed(4),pts:entPts,max:6,risk:entRisk},
+{cat:"FREQUENCY"},
+{name:"Lag-1 Autocorrelation",hint:"high = structured serial pattern",val:ac.toFixed(4),pts:acPts,max:5,risk:acRisk},
+{name:"Spectral Peak Ratio (DFT)",hint:"high = one frequency dominates",val:peakRatio.toFixed(4),pts:spPts,max:8,risk:spRisk},
+{cat:"MOUSE DYNAMICS"},
+{name:"Mouse Dynamics",hint:"N/A for auto-clicker (synthetic events)",val:"N/A",pts:0,max:25,risk:"ok"},
+{cat:"DISTRIBUTION & ARTIFACTS"},
+{name:"Digit Uniformity (\u03c7\u00b2/dof)",hint:"high = timer quantises intervals",val:chi2.toFixed(2),pts:dgPts,max:5,risk:dgRisk},
+{name:"Burstiness Index",hint:"negative = sub-Poissonian / periodic",val:B.toFixed(4),pts:buPts,max:5,risk:buRisk},
+{name:"Distribution Skewness",hint:"near zero = too symmetric",val:sk.toFixed(4),pts:skPts,max:7,risk:skRisk},
+{name:"Sub-ms Jitter Std",hint:"low = timer resolution artefact",val:fracStd.toFixed(4),pts:jPts,max:7,risk:jRisk}
+];
+document.getElementById("signalList").innerHTML=sigs.map(sig=>{if(sig.cat)return`<div class="sig-cat">${sig.cat}</div>`;return`<div class="signal-row"><div class="sig-left"><div class="sig-name">${sig.name}</div><div class="sig-hint">${sig.hint}</div></div><div class="sig-right"><div class="sig-val">${sig.val}</div><div class="sig-badge ${sig.risk}">${sig.pts}/${sig.max}</div></div></div>`}).join("");
+document.getElementById("signalsWrap").style.display="";
+
+const flagged=[hsPts,cvPts,rrPts,entPts,acPts,spPts,dgPts,buPts,skPts,jPts].filter(p=>p>0).length;
+document.getElementById("footerNote").style.display="";
+document.getElementById("footerNote").textContent=`Bot score ${effectiveScore}/100. ${flagged} of 10 timing signals flagged (mouse dynamics excluded for synthetic events).`;
+}
+</script>
+</body>
+</html>
